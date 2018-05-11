@@ -23,12 +23,8 @@ aka_name = boto3.client('kms').decrypt(CiphertextBlob=b64decode(aka_name_encrypt
 
 # function to download and process inspections data
 def download_process_inspections(slack_url, aka_name):
-    print(slack_url)
-    print(aka_name)
-    doit_url = ('https://data.cityofchicago.org/resource/4ijn-s7e5.json?$where=starts_with(aka_name,' +
-        aka_name +
-        ')')
-    print(doit_url)
+    doit_url = ('https://data.cityofchicago.org/resource/4ijn-s7e5.json?$where=starts_with(aka_name,{})'.format(
+        aka_name)
     
     r = requests.get(doit_url)
     if r.status_code == 200:
