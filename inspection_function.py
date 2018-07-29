@@ -1,5 +1,5 @@
 from base64 import b64decode
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 import sys
@@ -23,35 +23,42 @@ aka_name = boto3.client('kms').decrypt(CiphertextBlob=b64decode(aka_name_encrypt
 
 # function to download and process inspections data
 def download_process_inspections(slack_url, aka_name):
-    doit_url = ('https://data.cityofchicago.org/resource/4ijn-s7e5.json?$where=starts_with(aka_name,{})'.format(
-        aka_name)
+    print(slack_url)
+    print(aka_name)
+    doit_url = ('https://data.cityofchicago.org/resource/4ijn-s7e5.json?$where=starts_with(aka_name,' +
+        aka_name +
+        ')')
+    print(doit_url)
     
     r = requests.get(doit_url)
     if r.status_code == 200:
-        new_results = json.loads(r.text)
-        sorted_new_results = sorted(new_results, key=lambda x: datetime.strptime(x['inspection_date'], '%Y-%m-%dT%H:%M:%S'), reverse=True)
-        recent_inspection_date = datetime.strptime(sorted_new_results[0]['inspection_date'], '%Y-%m-%dT%H:%M:%S')
+        results = json.loads(r.text)
+        sorted_results = sorted(results, key=lambda x: datetime.strptime(x['inspection_date'], '%Y-%m-%dT%H:%M:%S'), reverse=True)
+        last_inspection = sorted_results[0]
+        last_inspection_date = last_inspection['inspection_date']
+        last_inspection_date_formatted = datetime.strptime(last_inspection_date, '%Y-%m-%dT%H:%M:%S')
         
         # if new inspection data appeared in the last 24 hours
-        if datetime.now() - last_inspection_date < timedelta(days=1):
+        if datetime.now() - last_inspection_date_formatted < timedelta(days=1):
 
             # grab inspection data
-            inspection_date = sorted_new_results[0]['inspection_date']
-            inspection_type = sorted_new_results[0]['inspection_type']
-            results = sorted_new_results[0]['results']
-            url_for_latest_inspection = doit_url + '&inspection_date={}'.format(inspection_date)
+            inspection_type = last_inspection['inspection_type']
+            results = last_inspection['results']
+            url_for_last_inspection = '{}&inspection_date={}'.format(doit_url, last_inspection_date)
+            print(url_for_last_inspection)
             
             # create slack payload
             payload = {
                 "channel": "#general",
-                "username": "InspectionBot",
-                "icon_emoji": ":robot_face:",
+                "username": "SunWahBot",
+                "icon_emoji": ":bird:",
                 "text": '*New inspection. May be tasty -and- safe!* \n' +
                         'type: ' + inspection_type + '\n' +
-                        'date: ' + inspection_date + '\n' +
+                        'date: ' + last_inspection_date + '\n' +
                         'results: ' + results + '\n' +
-                        'complete record: <' + url_for_latest_inspection + '>'
+                        'complete record: <' + url_for_last_inspection + '>'
             }
+            print(payload)
 
             # post to slack
             headers = {'Content-type': 'application/json'}
@@ -61,8 +68,8 @@ def download_process_inspections(slack_url, aka_name):
     else:
         payload = {
             "channel": channel,
-            "username": "InspectionBot",
-            "icon_emoji": ":robot_face:",
+            "username": "SunWahBot",
+            "icon_emoji": ":bird:",
             "text": "Inspection request failed with error {}".format(r.status_code)
         }
         headers = {'Content-type': 'application/json'}
