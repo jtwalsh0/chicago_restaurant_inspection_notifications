@@ -23,12 +23,7 @@ aka_name = boto3.client('kms').decrypt(CiphertextBlob=b64decode(aka_name_encrypt
 
 # function to download and process inspections data
 def download_process_inspections(slack_url, aka_name):
-    print(slack_url)
-    print(aka_name)
-    doit_url = ('https://data.cityofchicago.org/resource/4ijn-s7e5.json?$where=starts_with(aka_name,' +
-        aka_name +
-        ')')
-    print(doit_url)
+    doit_url = 'https://data.cityofchicago.org/resource/4ijn-s7e5.json?$where=starts_with(aka_name,{})'.format(aka_name)
     
     r = requests.get(doit_url)
     if r.status_code == 200:
@@ -39,31 +34,25 @@ def download_process_inspections(slack_url, aka_name):
         last_inspection_date_formatted = datetime.strptime(last_inspection_date, '%Y-%m-%dT%H:%M:%S')
         
         # if new inspection data appeared in the last 24 hours
-        if datetime.now() - last_inspection_date_formatted < timedelta(days=1):
+        if datetime.now() - last_inspection_date_formatted < timedelta(days=200):
 
             # grab inspection data
             inspection_type = last_inspection['inspection_type']
             results = last_inspection['results']
             url_for_last_inspection = '{}&inspection_date={}'.format(doit_url, last_inspection_date)
-            print(url_for_last_inspection)
             
             # create slack payload
             payload = {
                 "channel": "#general",
                 "username": "SunWahBot",
                 "icon_emoji": ":bird:",
-                "text": '*New inspection. May be tasty -and- safe!* \n' +
-                        'type: ' + inspection_type + '\n' +
-                        'date: ' + last_inspection_date + '\n' +
-                        'results: ' + results + '\n' +
-                        'complete record: <' + url_for_last_inspection + '>'
+                "text": '*New inspection. May be tasty -and- safe!* \ntype: {}\ndate: {}\nresults: {}\ncomplete record: <{}>'.format(
+                    inspection_type, last_inspection_date, results, url_for_last_inspection)
             }
-            print(payload)
 
             # post to slack
             headers = {'Content-type': 'application/json'}
-            response = requests.post(slack_url, json=payload, headers=headers)
-            
+            response = requests.post(slack_url, json=payload, headers=headers)       
 
     else:
         payload = {
